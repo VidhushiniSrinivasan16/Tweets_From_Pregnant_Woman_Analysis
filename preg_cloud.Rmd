@@ -1,0 +1,120 @@
+---
+title: "preg_cloud"
+output: html_document
+---
+```{r}
+library("readxl")
+options(stringsAsFactors = FALSE)
+library(slam)
+library(magrittr)
+library(textcat)
+#library(cldr)
+library(entropart)
+#update.packages()
+library(tidyverse)
+#library(tokenizers)
+library(mgcv)
+library(twitteR)
+library(plyr)
+library(dplyr)
+library(boot)
+library(vegan)
+library(simboot)
+library(ROAuth)
+library(stringr)
+library(readxl)
+library(stringi)
+#library(tidytext)
+library(tidyr)
+
+library(tm)
+library(scales)
+library(reshape2)
+library(ggplot2)
+#library(sentiment)
+library(SnowballC)
+library(RColorBrewer)
+library(Unicode)
+```
+
+
+```{r}
+setwd("/Users/vidhushinisrinivasan/Documents/R_Scripts_2/")
+my_data <- read_excel("preg_tweets.xlsx", 1)
+```
+
+```{r}
+my_data
+```
+```{r}
+# tweets cleaning pipe
+cleanPosts <- function(text) {
+  clean_texts <- text %>%
+    gsub("<.*>", "", .) %>% # remove emojis
+    gsub("&amp;", "", .) %>% # remove &
+    gsub("(RT|via)((?:\\b\\W*@\\w+)+)", "", .) %>% # remove retweet entities
+    gsub("@\\w+", "", .) %>% # remove at people
+    hashgrep %>%
+    gsub("[[:punct:]]", "", .) %>% # remove punctuation
+    gsub("[[:digit:]]", "", .) %>% # remove digits
+    gsub("http\\w+", "", .) %>% # remove html links
+    iconv(from = "latin1", to = "ASCII", sub="") %>% # remove emoji and bizarre signs
+    gsub("[ \t]{2,}", " ", .) %>% # remove unnecessary spaces
+    gsub("^\\s+|\\s+$", "", .) %>% # remove unnecessary spaces
+    tolower
+  return(clean_texts)
+}
+```
+
+
+```{r}
+# function that separates capital letters hashtags
+hashgrep <- function(text) {
+  hg <- function(text) {
+    result <- ""
+    while(text != result) {
+      result <- text
+      text <- gsub("#[[:alpha:]]+\\K([[:upper:]]+)", " \\1", text, perl = TRUE)
+    }
+    return(text)
+  }
+  unname(sapply(text, hg))
+}
+
+```
+
+```{r}
+library(tm)
+library(dplyr)
+#Create a vector containing only the text
+text <- my_data$text
+text <- cleanPosts(text)
+# Create a corpus  
+docs <- Corpus(VectorSource(text))
+docs <- docs %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stemDocument) %>%
+  tm_map(removeWords,c('pregnancy','pregnancyproblem','pregnant','pregnancycrav','pregnanc','pregnancylif','bunnywithabump','mamatob','suicidesquad','likePregger','currentmood','heartburn','fitmom')) %>%
+  tm_map(stripWhitespace)
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+dtm <- TermDocumentMatrix(docs) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+
+```
+
+```{r}
+library(wordcloud)
+library(RColorBrewer)
+
+set.seed(1234) # for reproducibility 
+wordcloud(words = df$word, freq = df$freq,min.freq=20,scale=c(2.3,.5),           max.words=300, random.order=FALSE, rot.per=0.35,            colors=brewer.pal(8, "Dark2"))
+```
+
+```{r}
+Sys.setlocale(category = "LC_ALL", locale = "en_US.UTF-8")
+```
+
